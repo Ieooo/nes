@@ -199,3 +199,7 @@
 | TXS         | Implied         | TXS          | 9A     | 1     | 2      |
 | TSX         | Implied         | TSX          | BA     | 1     | 2      |
 | TXA         | Implied         | TXA          | 8A     | 1     | 2      |
+
+
+#### Test
+use [6502-functional-tests](https://github.com/Klaus2m5/6502_65C02_functional_tests).
