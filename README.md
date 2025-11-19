@@ -201,5 +201,11 @@
 | TXA         | Implied         | TXA          | 8A     | 1     | 2      |
 
 
-#### Test
-use [6502-functional-tests](https://github.com/Klaus2m5/6502_65C02_functional_tests).
+
+### APU
+
+
+#### Reference
+[6502-functional-tests](https://github.com/Klaus2m5/6502_65C02_functional_tests).
+
+[nes-dev](https://www.nesdev.org).

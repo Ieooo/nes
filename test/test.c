@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "../cpu.h"
 #include "../memory.h"
-#include "../machine.h"
+#include "../nes.h"
 #include "../instruction.h"
 
 void load_ram() {
@@ -21,7 +21,7 @@ void load_ram() {
 }
 
 void main() {
-   register_t* reg = get_reg();
+   reg_t* reg = get_reg();
    
    reg->PC = 0x400;
    reg->P = 0x24;
@@ -29,6 +29,7 @@ void main() {
    reg->X = 0;
    reg->Y = 0;
    reg->SP = 0xFF;
+   mem_init(NULL, NULL);
 
    printf("loading rom.\n");
    load_ram(reg); 
@@ -55,7 +56,7 @@ void main() {
       // print_registers();
 
       int res_code = instruction.exec_func(arg);
-      if (res_code != 0) {
+      if (res_code <= 0) {
          printf("error result code: %d\n", res_code);
          return;
       }

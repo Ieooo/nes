@@ -20,12 +20,21 @@ typedef struct {
     uint8_t SP;  // stack pointer
     uint16_t PC; // program pointer
     uint8_t P;   // processor status register
+} reg_t;
+
+typedef struct {
+    reg_t reg; 
 
     uint8_t NMI; 
     uint8_t IRQ;
-} register_t;
+} CPU;
 
-register_t* get_reg();
+reg_t* get_reg();
+CPU* get_cpu();
+uint8_t get_NMI();
+uint8_t get_IRQ();
+void set_NMI(uint8_t);
+void set_IRQ(uint8_t);
 void cpu_reset();
 void print_registers();
 

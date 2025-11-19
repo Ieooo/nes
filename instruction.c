@@ -6,7 +6,7 @@
 // load Accumulator with Data Stored in Memory
 // affect N Z
 int LDA(exector_arg_t arg) {
-    register_t * reg = get_reg();
+    reg_t * reg = get_reg();
     uint8_t value = 0;
     uint8_t p = reg->P & ~FlagZero & ~FlagNegative;
     switch (arg.instr.mode)
@@ -45,14 +45,14 @@ int LDA(exector_arg_t arg) {
     if (value == 0) p |= FlagZero;
     reg->P = p;
     reg->PC += arg.instr.length;
-    return 0;
+    return arg.instr.cycle;
 }
 
 // load X register with Data Stored in Memory
 // affect N Z
 // add 1 clock cycle when page boundary is crossed
 int LDX(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     uint8_t value = 0;
     uint8_t p = reg->P & ~FlagZero & ~FlagNegative;
     switch (arg.instr.mode)
@@ -80,13 +80,13 @@ int LDX(exector_arg_t arg) {
     if (value == 0) p |= FlagZero; 
     reg->P = p;
     reg->PC += arg.instr.length;
-    return 0;
+    return arg.instr.cycle;
 }
 
 // load Y register with Data Stored in Memory
 // affect N Z
 int LDY(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     uint8_t value = 0;
     uint8_t p = reg->P & ~FlagZero & ~FlagNegative;
     switch (arg.instr.mode)
@@ -114,12 +114,12 @@ int LDY(exector_arg_t arg) {
     if (value == 0) p |= FlagZero; 
     reg->P = p;
     reg->PC += arg.instr.length;
-    return 0;
+    return arg.instr.cycle;
 }
 
 // store A register with Data Stored in Memory(A->M)
 int STA(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     uint16_t addr = 0;
     switch (arg.instr.mode)
     {
@@ -149,12 +149,12 @@ int STA(exector_arg_t arg) {
     }
     set_byte(addr, reg->A);
     reg->PC += arg.instr.length;
-    return 0;
+    return arg.instr.cycle;
 }
 
 // store X register with Data Stored in Memory(X->M)
 int STX(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     uint16_t addr = 0;
     switch (arg.instr.mode)
     {
@@ -172,12 +172,12 @@ int STX(exector_arg_t arg) {
     }
     set_byte(addr, reg->X);
     reg->PC += arg.instr.length;
-    return 0;
+    return arg.instr.cycle;
 }
 
 // store Y register with Data Stored in Memory
 int STY(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     uint16_t addr = 0;
     switch (arg.instr.mode)
     {
@@ -195,40 +195,13 @@ int STY(exector_arg_t arg) {
     }
     set_byte(addr, reg->Y);
     reg->PC += arg.instr.length;
-    return 0;
+    return arg.instr.cycle;
 }
 
-/*
-    uint8_t c = (reg->P & FlagCarry) == FlagCarry ? 1 : 0;
-    if ((int16_t)(int8_t)reg->A + (int16_t)(int8_t)value + c > 127 || (int16_t)(int8_t)reg->A + (int16_t)(int8_t)value + c < -128) 
-        p |= FlagOverflow;
-    // BCD Mode
-    if (reg->P & FlagDecimalMode == 0) {
-        if (reg->A + value + c > 0xFF) p |= FlagCarry;
-        reg->A += value + c;
-        p |= reg->A & FlagNegative;
-    } else { // BCD mode
-        uint8_t low = (reg->A & 0x0F) + (value & 0x0F) + c;
-        if (low >= 0x0A) {
-            low += 0x06;
-            c = 1;
-        }
-        uint8_t high = (reg->A & 0xF0) + (value & 0xF0) + c;
-        if (high >= 0xA0) {
-            high += 0x06;
-            p |= FlagCarry;
-        }
-        reg->A = high + low;
-    }
-    if (reg->A == 0) p |= FlagZero;
-    reg->P = p;
-    reg->PC += arg.instr.length;
-    return 0;
-*/
 // Add memory to Accumulator with carry
 // affect N Z C
 int ADC(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     uint8_t value = 0;
     uint8_t p = reg->P & ~FlagCarry & ~FlagNegative & ~FlagZero & ~FlagOverflow;
     switch (arg.instr.mode)
@@ -288,42 +261,14 @@ int ADC(exector_arg_t arg) {
     if (reg->A == 0) p |= FlagZero;
     reg->P = p;
     reg->PC += arg.instr.length;
-    return 0;
+    return arg.instr.cycle;
 }
 
-/*
-        uint8_t c = (reg->P & FlagCarry) == 0 ? 1 : 0;
-    if ((int16_t)(int8_t)reg->A - (int16_t)(int8_t)value - c > 127 || (int16_t)(int8_t)reg->A - (int16_t)(int8_t)value - c < -128) 
-        p |= FlagOverflow;
-    // BCD Mode
-    if (reg->P & FlagDecimalMode == 0) {
-        if (reg->A - value - c >= 0) p |= FlagCarry;
-        reg->A = reg->A - value - c;
-        p |= reg->A & FlagNegative;
-    } else {
-        uint8_t low = 0; 
-        uint8_t high = 0;
-        if ((reg->A & 0x0F) < (value & 0x0F) + c) {
-            low = (reg->A & 0x0F) + 0x0A - (value & 0x0F) - c;
-            c = 1;
-        }
-        if ((reg->A & 0xF0) < (value & 0xF0) + c) {
-            high = (uint8_t)((uint16_t)(reg->A & 0xF0) + 0xA0 - (value & 0xF0) - c);
-        } else {
-            p |= FlagCarry;
-        }
-        reg->A = high + low;
-    }
-    if (reg->A == 0) p |= FlagZero;
-    reg->P = p;
-    reg->PC += arg.instr.length;
-    return res_code;
-*/
 // Subtract memory from accumulator with borrow(A-M-~C->A),
 // affect N Z C V
 // add 1 clock cycle when page boundary is crossed
 int SBC(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     uint8_t p = reg->P & ~FlagCarry & ~FlagNegative & ~FlagZero & ~FlagOverflow;
     uint8_t value = 0;
     int res_code = 0;
@@ -388,13 +333,13 @@ int SBC(exector_arg_t arg) {
     if (reg->A == 0) p |= FlagZero;
     reg->P = p;
     reg->PC += arg.instr.length;
-    return res_code;
+    return arg.instr.cycle;
 }
 
 // Increment memory by one,
 // affect N Z
 int INC(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     uint8_t p = reg->P & ~FlagZero & ~FlagNegative;
     uint16_t addr = 0;
     switch (arg.instr.mode)
@@ -421,13 +366,13 @@ int INC(exector_arg_t arg) {
     set_byte(addr, value);
     reg->P = p;
     reg->PC += arg.instr.length;
-    return 0;
+    return arg.instr.cycle;
 }
 
 // Decrement memory by one,
 // affect N Z
 int DEC(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     uint8_t p = reg->P & ~FlagZero & ~FlagNegative;
     uint16_t addr = 0;
     switch (arg.instr.mode)
@@ -454,66 +399,66 @@ int DEC(exector_arg_t arg) {
     set_byte(addr, value);
     reg->P = p;
     reg->PC += arg.instr.length;
-    return 0;
+    return arg.instr.cycle;
 }
 
 // Increment Index X by one,
 // affect N Z
 int INX(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     uint8_t p = reg->P & ~FlagZero & ~FlagNegative;
     reg->X += 1;
     if (reg->X == 0) p |= FlagZero;
     p |= FlagNegative & reg->X;
     reg->P = p;
     reg->PC += arg.instr.length;
-    return 0;
+    return arg.instr.cycle;
 }
 
 // Decrement index X by one(X=X-1),
 // affect N Z
 int DEX(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     uint8_t p = reg->P & ~FlagZero & ~FlagNegative;
     reg->X -= 1;
     if (reg->X == 0) p |= FlagZero;
     p |= FlagNegative & reg->X;
     reg->P = p;
     reg->PC += arg.instr.length;
-    return 0;
+    return arg.instr.cycle;
 }
 
 // Increment Index Y by one,
 // affect N Z
 int INY(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     uint8_t p = reg->P & ~FlagZero & ~FlagNegative;
     reg->Y += 1;
     if (reg->Y == 0) p |= FlagZero;
     p |= FlagNegative & reg->Y;
     reg->P = p;
     reg->PC += arg.instr.length;
-    return 0;
+    return arg.instr.cycle;
 }
 
 // Decrement index Y by one,
 // affect N Z
 int DEY(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     uint8_t p = reg->P & ~FlagZero & ~FlagNegative;
     reg->Y -= 1;
     if (reg->Y == 0) p |= FlagZero;
     p |= FlagNegative & reg->Y;
     reg->P = p;
     reg->PC += arg.instr.length;
-    return 0;
+    return arg.instr.cycle;
 }
 
 // Compare memory and accumulator(A-M)
 // affect N Z C
 // add 1 if page boundary is crossed
 int CMP(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     uint8_t p = reg->P & ~FlagCarry & ~FlagNegative & ~FlagZero;
     uint8_t value = 0;
     int res_code = 0;
@@ -553,16 +498,15 @@ int CMP(exector_arg_t arg) {
     p |= (reg->A - value) & FlagNegative;
     reg->P = p;
     reg->PC += arg.instr.length;
-    return res_code;
+    return arg.instr.cycle;
 }
 
 // Compare Memory and Index X(X-M),
 // affecct N Z C
 int CPX(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     uint8_t p = reg->P & ~FlagCarry & ~FlagNegative & ~FlagZero;
     uint8_t value = 0;
-    int res_code = 0;
     switch (arg.instr.mode)
     {
     case IMMEDIATE:
@@ -582,16 +526,15 @@ int CPX(exector_arg_t arg) {
     p |= (reg->X -value) & FlagNegative;
     reg->P = p;
     reg->PC += arg.instr.length;
-    return res_code;
+    return arg.instr.cycle;
 }
 
 // Compare Memory and Index Y(Y-M),
 // affecct N Z C
 int CPY(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     uint8_t p = reg->P & ~FlagCarry & ~FlagNegative & ~FlagZero;
     uint8_t value = 0;
-    int res_code = 0;
     switch (arg.instr.mode)
     {
     case IMMEDIATE:
@@ -611,13 +554,13 @@ int CPY(exector_arg_t arg) {
     p |= (reg->Y - value) & FlagNegative;
     reg->P = p;
     reg->PC += arg.instr.length;
-    return res_code;
+    return arg.instr.length;
 }
 
 // AND memory with Accumulator,
 // affect N Z
 int AND(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     uint8_t value = 0;
     uint8_t p = reg->P & ~FlagNegative & ~FlagZero;
     switch (arg.instr.mode)
@@ -656,13 +599,13 @@ int AND(exector_arg_t arg) {
     p |= reg->A & FlagNegative;
     reg->P = p;
     reg->PC += arg.instr.length;
-    return 0; 
+    return arg.instr.cycle; 
 }
 
 // Or memory with accumulator(A|M->M)
 // affect N Z
 int ORA(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     uint8_t value = 0;
     uint8_t p = reg->P & ~FlagNegative & ~FlagZero;
     switch (arg.instr.mode)
@@ -701,13 +644,13 @@ int ORA(exector_arg_t arg) {
     p |= reg->A & FlagNegative;
     reg->P = p;
     reg->PC += arg.instr.length;
-    return 0; 
+    return arg.instr.cycle; 
 }
 
 // Exclusive-Or memory with accumulator(A^M->A)
 // affect N Z
 int EOR(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     uint8_t value = 0;
     uint8_t p = reg->P & ~FlagNegative & ~FlagZero;
     switch (arg.instr.mode)
@@ -746,13 +689,13 @@ int EOR(exector_arg_t arg) {
     p |= reg->A & FlagNegative;
     reg->P = p;
     reg->PC += arg.instr.length;
-    return 0; 
+    return arg.instr.cycle; 
 }
 
 // Shift Left One Bit(Memory or Accumulator),
 // affect N Z C
 int ASL(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     uint8_t value = 0;
     uint16_t addr = 0;
     uint8_t p = reg->P & ~FlagNegative & ~FlagZero & ~FlagCarry;
@@ -787,13 +730,13 @@ int ASL(exector_arg_t arg) {
     reg->P = p;
     if (arg.instr.mode == REGISTER) reg->A = value; else set_byte(addr, value);
     reg->PC += arg.instr.length;
-    return 0; 
+    return arg.instr.cycle; 
 }
 
 // Shift right one bit(memory or accumulator)
 // affect Z C
 int LSR(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     uint8_t value = 0;
     uint16_t addr = 0;
     uint8_t p = reg->P & ~FlagNegative & ~FlagZero & ~FlagCarry;
@@ -827,13 +770,13 @@ int LSR(exector_arg_t arg) {
     if (arg.instr.mode == REGISTER) reg->A = value; else set_byte(addr, value);
     reg->P = p;
     reg->PC += arg.instr.length;
-    return 0; 
+    return arg.instr.cycle; 
 }
 
 // Rotate one bit left(memory or accumulator)
 // affect N Z V
 int ROL(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     uint8_t value = 0;
     uint16_t addr = 0;
     uint8_t p = reg->P & ~FlagNegative & ~FlagZero & ~FlagCarry;
@@ -868,13 +811,13 @@ int ROL(exector_arg_t arg) {
     if (arg.instr.mode == REGISTER) reg->A = value; else set_byte(addr, value);
     reg->P = p;
     reg->PC += arg.instr.length;
-    return 0; 
+    return arg.instr.cycle; 
 }
 
 // Rotate one bit right(memory or accumulator)
 // affect N Z V
 int ROR(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     uint8_t value = 0;
     uint16_t addr = 0;
     uint8_t p = reg->P & ~FlagNegative & ~FlagZero & ~FlagCarry;
@@ -909,7 +852,7 @@ int ROR(exector_arg_t arg) {
     if (arg.instr.mode == REGISTER) reg->A = value; else set_byte(addr, value);
     reg->P = p;
     reg->PC += arg.instr.length;
-    return 0; 
+    return arg.instr.cycle; 
 }
 
 // Test bits in memory with accumulator(A^M, M7->N, M6->V),
@@ -917,7 +860,7 @@ int ROR(exector_arg_t arg) {
 // if the result of A^M is zero then Z=1, otherwise Z=0,
 // affect N Z V
 int BIT(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     uint8_t value = 0;
     uint16_t addr = 0;
     uint8_t p = reg->P & ~FlagNegative & ~FlagOverflow & ~FlagZero;
@@ -939,12 +882,12 @@ int BIT(exector_arg_t arg) {
     if ((value & 0x40) == 0x40) p |= FlagOverflow;
     reg->P = p;
     reg->PC += arg.instr.length;
-    return 0; 
+    return arg.instr.cycle; 
 }
 
 // Jump to new location,
 int JMP(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     switch (arg.instr.mode)
     {
     case ABSOLUTE:
@@ -956,133 +899,133 @@ int JMP(exector_arg_t arg) {
     default:
         return -1;
     }
-    return 0;
+    return arg.instr.cycle;
 }
 
 // Jump to Subroutine with saving return address
 int JSR(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     reg->PC += arg.instr.length - 1;
     // push return address
     set_byte(STACK_TOP + reg->SP--, (uint8_t)(reg->PC >> 8));
     set_byte(STACK_TOP + reg->SP--, (uint8_t)reg->PC);
     reg->PC = ((uint16_t)arg.other[1] << 8) + (uint16_t)arg.other[0];
-    return 0;
+    return arg.instr.cycle;
 }
 
 int RTS(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     // pop return address
     uint8_t low_addr = get_byte(STACK_TOP + ++reg->SP);
     uint8_t high_addr = get_byte(STACK_TOP + ++reg->SP);
     reg->PC = ((uint16_t)high_addr << 8) + (uint16_t)low_addr + 1;
-    return 0;
+    return arg.instr.cycle;
 }
 
 // Branch on Carry Clear(C=0)
 // add 1 clock cycle if branch occures to same page,
 // add 2 clock cycle if branch occurs to different page
 int BCC(exector_arg_t arg) {
-    register_t* reg = get_reg();
-    reg->PC += arg.instr.length;    
+    reg_t* reg = get_reg();
+    reg->PC += arg.instr.length;
     if ((reg->P & FlagCarry) == 0) reg->PC += (uint16_t)(int8_t)arg.other[0];
-    return 0;
+    return arg.instr.cycle;
 }
 
 // Branch on Carry Set(C=1)
 // add 1 clock cycle if branch occures to same page,
 // add 2 clock cycle if branch occurs to different page
 int BCS(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     reg->PC += arg.instr.length;    
     if ((reg->P & FlagCarry) == FlagCarry) reg->PC += (uint16_t)(int8_t)arg.other[0];
-    return 0;
+    return arg.instr.cycle;
 }
 
 // Branch if Equal (Z=1)
 // add 1 clock cycle if branch occures to same page,
 // add 2 clock cycle if branch occurs to different page
 int BEQ(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     reg->PC += arg.instr.length;
     if ((reg->P & FlagZero) == FlagZero) reg->PC += (uint16_t)(int8_t)arg.other[0];
-    return 0;
+    return arg.instr.cycle;
 }
 
 // Branch if Not Equal(Z=0)
 // add 1 clock cycle if branch occures to same page,
 // add 2 clock cycle if branch occurs to different page
 int BNE(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     reg->PC += arg.instr.length;
     if ((reg->P & FlagZero) == 0) reg->PC += (uint16_t)(int8_t)arg.other[0];
-    return 0;
+    return arg.instr.cycle;
 }
 
 // Branch if Minus(N=1)
 // add 1 clock cycle if branch occures to same page,
 // add 2 clock cycle if branch occurs to different page
 int BMI(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     reg->PC += arg.instr.length;
     if ((reg->P & FlagNegative) == FlagNegative) reg->PC += (uint16_t)(int8_t)arg.other[0];
-    return 0;
+    return arg.instr.cycle;
 }
 
 // Branch if result positive(N=0) 
 // add 1 clock cycle if branch occures to same page,
 // add 2 clock cycle if branch occurs to different page
 int BPL(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     reg->PC += arg.instr.length;
     if ((reg->P & FlagNegative) == 0) reg->PC += (uint16_t)(int8_t)arg.other[0];
-    return 0;
+    return arg.instr.cycle;
 }
 
 // Branch on Overflow clear(V=0)
 // add 1 clock cycle if branch occures to same page,
 // add 2 clock cycle if branch occurs to different page
 int BVC(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     reg->PC += arg.instr.length;
     if ((reg->P & FlagOverflow) == 0) reg->PC += (uint16_t)(int8_t)arg.other[0];
-    return 0;
+    return arg.instr.cycle;
 }
 
 // Branch on Overflow set(V=1)
 // add 1 clock cycle if branch occures to same page,
 // add 2 clock cycle if branch occurs to different page
 int BVS(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     reg->PC += arg.instr.length;
     if ((reg->P & FlagOverflow) == FlagOverflow) reg->PC += (uint16_t)(int8_t)arg.other[0];
-    return 0;
+    return arg.instr.cycle;
 }
 
 
 // Push accumulator on stack
 int PHA(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     set_byte(STACK_TOP + reg->SP, reg->A);
     reg->SP -= 1;
     reg->PC += arg.instr.length;
-    return 0;
+    return arg.instr.cycle;
 }
 
 // Push Processor Status on stack
 int PHP(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     reg->P |= FlagBreakCammand | FlagUnused;  // must be on(hardware control)
     set_byte(STACK_TOP + reg->SP, reg->P);
     reg->SP -= 1;
     reg->PC += arg.instr.length;
-    return 0;
+    return arg.instr.cycle;
 }
 
 // Pull accumulator from stack
 // affect N Z
 int PLA(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     uint8_t p = reg->P & ~FlagNegative & ~FlagZero;
     reg->SP += 1;
     reg->A = get_byte(STACK_TOP + reg->SP);
@@ -1090,89 +1033,89 @@ int PLA(exector_arg_t arg) {
     if ((reg->A & FlagNegative) == FlagNegative) p |= FlagNegative;
     reg->P = p;
     reg->PC += arg.instr.length;
-    return 0;
+    return arg.instr.cycle;
 }
 
 // Pull Processor Status from stack
 int PLP(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     reg->SP += 1;
     reg->P = get_byte(STACK_TOP + reg->SP) | FlagUnused; // P5 always on
     reg->PC += arg.instr.length;
-    return 0;
+    return arg.instr.cycle;
 }
 
 // Clear Carry flag
 int CLC(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     reg->P &= ~FlagCarry;
     reg->PC += arg.instr.length;
-    return 0;
+    return arg.instr.cycle;
 }
 // Set Carry flag
 int SEC(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     reg->P |= FlagCarry;
     reg->PC += arg.instr.length;
-    return 0;
+    return arg.instr.cycle;
 }
 // Clear Interrupt disable bit
 int CLI(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     reg->P &= ~FlagInterruptDisabled;
     reg->PC += arg.instr.length;
-    return 0;
+    return arg.instr.cycle;
 }
 // Set Interrupt disable bit
 int SEI(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     reg->P |= FlagInterruptDisabled;
     reg->PC += arg.instr.length;
-    return 0;
+    return arg.instr.cycle;
 }
 // Clear Overflow flag
 int CLV(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     reg->P &= ~FlagOverflow;
     reg->PC += arg.instr.length;
-    return 0;
+    return arg.instr.cycle;
 }
 // Clear Decimal mode
 int CLD(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     reg->P &= ~FlagDecimalMode;
     reg->PC += arg.instr.length;
-    return 0;
+    return arg.instr.cycle;
 }
 // Set Decimal flag
 int SED(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     reg->P |= FlagDecimalMode;
     reg->PC += arg.instr.length;
-    return 0;
+    return arg.instr.cycle;
 }
 
 // Force Interrupt
 int BRK(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     // push pc to stack, 
     reg->PC += arg.instr.length + 1;
     set_byte(STACK_TOP + reg->SP--, (uint8_t)(reg->PC >> 8));
     set_byte(STACK_TOP + reg->SP--, (uint8_t)reg->PC);
     // push p register, set B=1, U=1
     uint8_t p = reg->P | FlagUnused;  // FlagUnused must be on(hardware control)
-    if (reg->IRQ == 0) p |= FlagBreakCammand;
+    if (get_NMI() == 0) p |= FlagBreakCammand;
     set_byte(STACK_TOP + reg->SP--, p);
     // set p register
     reg->P |= FlagInterruptDisabled;  // disable interrupt
     // set pc from BRK interrupt vector
     reg->PC = get_word(INTERRUPT_VECTOR_BRK);
-    return 0;
+    return arg.instr.cycle;
 }
 
 // Retrun from Interrupt
 int RTI(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     // pop p register
     reg->P = get_byte(STACK_TOP + ++reg->SP);
     reg->P &= ~FlagBreakCammand;
@@ -1180,84 +1123,99 @@ int RTI(exector_arg_t arg) {
     uint8_t low_addr = get_byte(STACK_TOP + ++reg->SP);
     uint8_t high_addr = get_byte(STACK_TOP + ++reg->SP);
     reg->PC = (((uint16_t)high_addr << 8) + (uint16_t)low_addr);
-    return 0;
+    return arg.instr.cycle;
 }
 
 // Transfer Index X to Stack Pointer
 int TXS(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     reg->SP = reg->X;
     reg->PC += arg.instr.length;
-    return 0;
+    return arg.instr.cycle;
 }
 // Transfer Stack Pointer to Index X
 // affect N Z
 int TSX(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     uint8_t p = reg->P & ~FlagNegative & ~FlagZero;
     reg->X = reg->SP;
     if (reg->X == 0) p |= FlagZero;
     p |= reg->X & FlagNegative;
     reg->P = p;
     reg->PC += arg.instr.length;
-    return 0;
+    return arg.instr.cycle;
 }
 
 // Transfer Index X to Accumulator
 // affect N Z
 int TXA(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     uint8_t p = reg->P & ~FlagNegative & ~FlagZero;
     reg->A = reg->X;
     if (reg->A == 0) p |= FlagZero;
     p |= reg->A & FlagNegative;
     reg->P = p;
     reg->PC += arg.instr.length;
-    return 0;
+    return arg.instr.cycle;
 }
 // Transfer Accumulator to Index X
 // affect N Z
 int TAX(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     uint8_t p = reg->P & ~FlagNegative & ~FlagZero;
     reg->X = reg->A;
     if (reg->X == 0) p |= FlagZero;
     p |= reg->X & FlagNegative;
     reg->P = p;
     reg->PC += arg.instr.length;
-    return 0;
+    return arg.instr.cycle;
 }
 
 // Transfer Index Y to Accumulator
 // affect N Z
 int TYA(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     uint8_t p = reg->P & ~FlagNegative & ~FlagZero;
     reg->A = reg->Y;
     if (reg->A == 0) p |= FlagZero;
     p |= reg->A & FlagNegative;
     reg->P = p;
     reg->PC += arg.instr.length;
-    return 0;
+    return arg.instr.cycle;
 }
 
 // Transfer Accumulator to Index Y
 int TAY(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     uint8_t p = reg->P & ~FlagNegative & ~FlagZero;
     reg->Y = reg->A;
     if (reg->Y == 0) p |= FlagZero;
     p |= reg->Y & FlagNegative;
     reg->P = p;
     reg->PC += arg.instr.length;
-    return 0;
+    return arg.instr.cycle;
 }
 
 // no operation
 int NOP(exector_arg_t arg) {
-    register_t* reg = get_reg();
+    reg_t* reg = get_reg();
     reg->PC += arg.instr.length;
-    return 0;
+    return arg.instr.cycle;
+}
+
+void NMI() {
+    reg_t* reg = get_reg();
+    // push pc to stack, 
+    set_byte(STACK_TOP + reg->SP--, (uint8_t)(reg->PC >> 8));
+    set_byte(STACK_TOP + reg->SP--, (uint8_t)reg->PC);
+    // push p register, set B=1
+    uint8_t p = reg->P;
+    p &= ~FlagBreakCammand;
+    p |= FlagUnused;
+    reg->P |= FlagInterruptDisabled;  // FlagUnused must be on(hardware control)
+    set_byte(STACK_TOP + reg->SP--, reg->P);
+    // set pc from BRK interrupt vector
+    reg->PC = get_word(INTERRUPT_VECTOR_NMI);
 }
 
 // not define now

@@ -107,6 +107,8 @@ int TAY(exector_arg_t);
 
 int RTI(exector_arg_t);
 
+void NMI();
+
 int NDF(exector_arg_t);
 
 void print_asm();
